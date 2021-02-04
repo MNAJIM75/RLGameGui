@@ -33,16 +33,40 @@
 
 namespace RLGameGUI
 {
+    class GUIFrame : public GUIElement
+    {
+    public:
+        GUIFrame() { Renders = false; }
+    };
+
+    enum class PanelFillModes
+    {
+        Fill,
+        Tile,
+        NPatch,
+    };
+
 	class GUIPanel : public GUIElement
 	{
 	public:
 		Color Tint = WHITE;
+        Color Outline = BLANK;
+        int OutlineThickness = 0;
+
+        Texture2D Background = { 0 };
+        Rectangle SourceRect = { 0,0,0,0 };
+
+        PanelFillModes Fillmode = PanelFillModes::Fill;
+
+        Vector2 NPatchGutters = Vector2{ 0,0 };
 
 		typedef std::shared_ptr<GUIPanel> Ptr;
         inline static Ptr Create() { return std::make_shared<GUIPanel>(); }
 
 	protected:
 		void OnRender() override;
+
+        NPatchInfo NPatchData = { 0 };
 	};
 
     class GUIImage : public GUIElement
@@ -58,11 +82,42 @@ namespace RLGameGUI
         inline static Ptr Create() { return std::make_shared<GUIImage>(); }
 
     protected:
+        void OnUpdate() override;
         void OnRender() override;
+        void OnPreResize() override;
         void OnResize() override;
 
         Rectangle RealSourceRect = { 0 };
         Rectangle RealDestRect = { 0 };
+    };
 
+    class GUILabel : public GUIElement
+    {
+    public:
+        Color Tint = BLACK;
+        Font TextFont = GetFontDefault();
+        float TextSize = 20;
+
+        GUILabel() {}
+        GUILabel(const std::string& text) : Text(text) {}
+
+        typedef std::shared_ptr<GUILabel> Ptr;
+        inline static Ptr Create() { return std::make_shared<GUILabel>(); }
+        inline static Ptr Create(const std::string& text) { return std::make_shared<GUILabel>(text); }
+
+        AlignmentTypes HorizontalAlignment = AlignmentTypes::Minimum;
+        AlignmentTypes VerticalAlignment = AlignmentTypes::Minimum;
+
+        const std::string& GetText() const { return Text; }
+        void SetText(const std::string& text);
+
+    protected:
+        void OnRender() override;
+        void OnResize() override;
+
+        std::string Text;
+
+        Rectangle TextRect = { 0,0,0,0 };
+        float Spacing = 1;
     };
 }

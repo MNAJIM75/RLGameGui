@@ -31,9 +31,57 @@
 
 namespace RLGameGUI
 {
+    static Vector2 V2Zero = { 0,0 };
+
 	void GUIPanel::OnRender()
 	{
-		DrawRectangleRec(GetScreenRect(), Tint);
+        Rectangle rect = GetScreenRect();
+
+        if (Background.id == 0)
+        {
+            if (Tint.a != 0)
+            {
+                DrawRectangleRec(rect, Tint);
+            }
+            if (Outline.a != 0 && OutlineThickness > 0)
+            {
+                rect.height += 1;
+                DrawRectangleLinesEx(rect, OutlineThickness, Outline);
+            }     
+        }
+        else
+        {
+            if (SourceRect.width == 0)
+                SourceRect = Rectangle{ 0,0,(float)Background.width,(float)Background.height };
+
+            if (Fillmode == PanelFillModes::Tile)
+            {
+                DrawTextureTiled(Background, SourceRect, rect, V2Zero, 0, 1, Tint);
+            }
+            else if (Fillmode == PanelFillModes::Fill)
+            {
+                DrawTexturePro(Background, SourceRect, rect, V2Zero, 0, Tint);
+            }
+            else if (Fillmode == PanelFillModes::NPatch)
+            {
+                if (NPatchData.source.width == 0)
+                {
+                    NPatchData.source = SourceRect;
+
+                    NPatchData.left = NPatchData.right = (int)NPatchGutters.x;
+                    NPatchData.top = NPatchData.bottom = (int)NPatchGutters.y;
+         
+                    if (NPatchGutters.x == 0)
+                        NPatchData.type = NPT_3PATCH_VERTICAL;
+                    else if (NPatchGutters.y == 0)
+                        NPatchData.type = NPT_3PATCH_HORIZONTAL;
+                    else
+                        NPatchData.type = NPT_9PATCH;
+                }
+
+                DrawTextureNPatch(Background, NPatchData, rect, V2Zero, 0, Tint);
+            }
+        }
 	}
 
     void GUIImage::OnRender()
@@ -44,15 +92,16 @@ namespace RLGameGUI
 			DrawTexturePro(Background, RealSourceRect,RealDestRect, Vector2{ 0,0 }, 0, Tint);
     }
 
-    void GUIImage::OnResize()
+    void GUIImage::OnUpdate()
     {
-        if (Background.id == 0)
-            return;
+       
+    }
 
-        if (RelativeRect.width == 0 && RelativeRect.height == 0)
+    void GUIImage::OnPreResize()
+    {
+        if (RelativeBounds.Size.IsZero())
         {
-            RelativeRect.width = ScreenRect.width = (float)Background.width;
-            RelativeRect.height = ScreenRect.height = (float)Background.height;
+            RelativeBounds.Size = RelativePoint(Background.width, Background.height);
         }
 
         if (SourceRect.width == 0)
@@ -60,6 +109,12 @@ namespace RLGameGUI
             SourceRect.width = (float)Background.width;
             SourceRect.height = (float)Background.height;
         }
+    }
+
+    void GUIImage::OnResize()
+    {
+        if (Background.id == 0)
+            return;
 
         RealSourceRect = SourceRect;
         RealDestRect = GetScreenRect();
@@ -76,5 +131,70 @@ namespace RLGameGUI
             else if (RealSourceRect.height > RealDestRect.height)
                 RealSourceRect.height = RealDestRect.height;
         }
+    }
+
+    void GUILabel::SetText(const std::string& text)
+    {
+        if (text == Text)
+            return;
+        Text = text;
+
+        OnResize();
+    }
+
+    void GUILabel::OnResize()
+    {
+        int defaultFontSize = 10;   // Default Font chars height in pixel
+        if (TextSize < defaultFontSize)
+            TextSize = (float)defaultFontSize;
+
+        Spacing = TextSize / defaultFontSize;
+
+        Font fontToUse = TextFont;
+        if (TextFont.texture.id == 0)
+            fontToUse = GetFontDefault();
+
+        Vector2 size = MeasureTextEx(fontToUse, Text.c_str(), TextSize, Spacing);
+
+        TextRect.width = size.x + Spacing * 2;
+        switch (HorizontalAlignment)
+        {
+        case RLGameGUI::AlignmentTypes::Maximum:
+            TextRect.x = (ScreenRect.x + ScreenRect.width) - size.x;
+            break;
+
+        case RLGameGUI::AlignmentTypes::Center:
+            TextRect.x = (ScreenRect.x + ScreenRect.width * 0.5f) - size.x * 0.5f;
+            break;
+
+        default:
+            TextRect.x = ScreenRect.x;
+            break;
+        }
+
+        TextRect.height = size.y;
+        switch (VerticalAlignment)
+        {
+        case RLGameGUI::AlignmentTypes::Maximum:
+            TextRect.y = (ScreenRect.y + ScreenRect.height) - size.y;
+            break;
+
+        case RLGameGUI::AlignmentTypes::Center:
+            TextRect.y = (ScreenRect.y + ScreenRect.height * 0.5f) - size.y * 0.5f;
+            break;
+
+        default:
+            TextRect.y = ScreenRect.y;
+            break;
+        }
+    }
+
+    void GUILabel::OnRender()
+    {
+        Font fontToUse = TextFont;
+        if (TextFont.texture.id == 0)
+            fontToUse = GetFontDefault();
+
+        DrawTextRec(fontToUse, Text.c_str(), TextRect, TextSize, Spacing, false, Tint);
     }
 }
